@@ -86,7 +86,13 @@ const Chatbot = () => {
 
     return (
         <div>
-            <div style={{height: '800px', width : '700px', paddingTop: '100px'}}>
+            <div class="rounded-lg" style={{height: '550px', width : '400px', paddingTop: '100px'}}>
+                <div class="flex items-center gap-4 bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 p-1">
+                    <img class="w-10 h-10 rounded-full" src="https://flowbite.com/docs/images/people/profile-picture-5.jpg" alt="" />
+                    <div class="font-medium dark:text-black">
+                        <div>SuperScholar Chatbot</div>
+                    </div>
+                </div> 
                 <MainContainer>
                     <ChatContainer>
                         <MessageList
