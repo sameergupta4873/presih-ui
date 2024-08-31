@@ -9,6 +9,8 @@ export default function Home() {
   const [role, setRole] = useState("college");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [reg, setReg] = useState("");
+  const [collegeAdminId, setCollegeAdminId] = useState("");
 
   const router = useRouter();
 
@@ -36,9 +38,75 @@ export default function Home() {
     }
   };
 
+  const studentLogin = async () => {
+    try {
+      let docRef = doc(db, "colleges", collegeAdminId, "students", reg);
+      let docFound = await getDoc(docRef);
+      if(docFound.exists()) {
+        console.log("Document data:", docFound.data());
+        console.log("Document data:", docFound.data().password.toString() === password);
+        
+        if(docFound.data().password.toString() === password) {
+          console.log("Login success");
+          localStorage.setItem("userLogin", JSON.stringify(docFound.data()));
+          router.push("/student");
+          alert("Login success");
+        }else{
+          console.log("Invalid email or password! or college admin");
+          alert("Invalid email or password! or college admin");
+        }
+      }else {
+        console.log("No such document!");
+        alert("No student found with this credentials");
+      }
+      docRef = doc(db, "colleges", collegeAdminId);
+      docFound = await getDoc(docRef);
+      if(docFound.exists()) {
+        console.log("Document data:", docFound.data());
+        localStorage.setItem("studentCollege", JSON.stringify(docFound.data()));
+      }else{
+        console.log("No such document!");
+        alert("No college found with this credentials");
+      }
+    } catch (e) {
+      console.error("Error getting document: ", e);
+    }
+  };
+
+  const sagLogin = async() => {
+    try {
+      let docRef = doc(db, "colleges", collegeAdminId, "sag", email);
+      let docFound = await getDoc(docRef);
+      if(docFound.exists()) {
+        console.log("Document data:", docFound.data());
+        if(docFound.data().password.toString() === password) {
+          console.log("Login success");
+          localStorage.setItem("userLogin", JSON.stringify(docFound.data()));
+          router.push("/sag");
+          alert("Login success");
+        }else{
+          console.log("Invalid email or password! or college admin");
+          alert("Invalid email or password! or college admin");
+        }
+      }else {
+        console.log("No such document!");
+        alert("No sag admin found with this credentials");
+      }
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      alert("Something went wrong!")
+    }
+  }
+
   const handleSubmit = async () => {
     if (role === "college") {
       await collegeLogin();
+    }
+    if (role === "student") {
+      await studentLogin();
+    }
+    if(role === "sag"){
+      await sagLogin();
     }
   }
 
@@ -68,7 +136,7 @@ export default function Home() {
                 " College"
               }
             </h1>
-            <div>
+            { (role === "college" || role === "sag") &&   <div>
               <label
                 for="email"
                 class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
@@ -85,7 +153,25 @@ export default function Home() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-            </div>
+            </div>}
+            { (role === "student") &&   <div>
+              <label
+                for="reg"
+                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+              >
+                Registration Number
+              </label>
+              <input
+                type="text"
+                name="reg"
+                id="reg"
+                class="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                placeholder="Registration Number"
+                required=""
+                value={reg}
+                onChange={(e) => setReg(e.target.value)}
+              />
+            </div>}
             <div>
               <label
                 for="password"
@@ -104,6 +190,24 @@ export default function Home() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
+            { (role === "student" || role === "sag") &&   <div>
+              <label
+                for="adminId"
+                class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+              >
+                College Admin Id
+              </label>
+              <input
+                type="text"
+                name="adminId"
+                id="adminId"
+                class="bg-gray-50 border border-gray-300 text-gray-900 rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                placeholder="College Admin Id"
+                required=""
+                value={collegeAdminId}
+                onChange={(e) => setCollegeAdminId(e.target.value)}
+              />
+            </div>}
             <div class="flex items-center justify-between">
               <div class="flex items-start">
                 <div class="flex items-center h-5">
