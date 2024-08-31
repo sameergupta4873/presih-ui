@@ -3,6 +3,7 @@ import { collection, doc, getDocs, setDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import XLSX, { read, utils } from "xlsx";
 import { db } from "../../../firebase/db";
+import { useRouter } from "next/navigation";
 
 const Scholarships = () => {
   const [addScholarship, setAddScholarship] = useState(false);
@@ -1542,7 +1543,7 @@ const Users = () => {
 
 const College = () => {
   const [tab, setTab] = useState("scholarships");
-
+  const router = useRouter();
   return (
     <>
       <nav class="fixed shadow top-0 z-50 w-full bg-white border-b border-gray-200 dark:bg-gray-800 dark:border-gray-700">
@@ -1582,7 +1583,7 @@ const College = () => {
                 </span>
               </a>
             </div>
-            <div class="flex items-center">
+            <div class="flex items-center gap-5">
               <div class="flex items-center ms-3">
                 <div>
                   <button
@@ -1657,6 +1658,21 @@ const College = () => {
                   </ul>
                 </div>
               </div>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="size-6 hover:cursor-pointer"
+                onClick={() => router.push("/")}
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9"
+                />
+              </svg>
             </div>
           </div>
         </div>
