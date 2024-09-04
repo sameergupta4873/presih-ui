@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import XLSX, { read, utils } from "xlsx";
 import { db } from "../../../firebase/db";
 import { useRouter } from "next/navigation";
+import { sendInviteMail } from "../email/email";
 
 const Scholarships = () => {
   const [addScholarship, setAddScholarship] = useState(false);
@@ -1018,6 +1019,14 @@ const Users = () => {
     }
   };
 
+  const sentEmailInvites = async (students) => {
+    // Send email invites to the students
+    let temp = [{email: "srgupta_b21@it.vjti.ac.in" , name: "Sameer Gupta"}, {email: "ishaanchandak3@gmail.com", name: "Ishaan Chandak"}];
+    for(let student of temp) {
+        sendInviteMail("TBD", student.email, student.name);
+    }
+  };
+
   const uploadStudents = async (file) => {
     try {
       console.log(file);
@@ -1059,6 +1068,7 @@ const Users = () => {
         }
 
         alert("Student data uploaded successfully!");
+        sentEmailInvites(studentData);
         getStudents();
       };
 

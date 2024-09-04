@@ -1,6 +1,10 @@
 "use client";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
+import { Chatbot } from "../chatbot/chatbot";
+import { uploadDocumentSupabase } from "../upload/upload";
+import { collection, doc, setDoc } from "firebase/firestore";
+import { db } from "../../../firebase/db";
 
 const Home = () => {
   return (
@@ -179,7 +183,168 @@ const Scholarships = () => {
   const [active, setActive] = useState("Description");
   const [step, setStep] = useState(1);
   const [apply, setApply] = useState(false);
+  const [chatbot, setChatbot] = useState(false);
+  const [files, setFiles] = useState(null);
+  const [domicileCertificate, setDomicile] = useState(null);
+  const [incomeCertificate, setIncomeCertificate] = useState(null);
+  const [casteCertificate, setCasteCertificate] = useState(null);
+  const [aadhar, setAadhar] = useState(null);
+  const [bank, setBank] = useState(null);
+  const [forgeryLoading, setForgeryLoading] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
 
+  const toggleChatbotVisibility = () => {
+    setChatbot(!chatbot);
+  };
+
+  const checkForgery = async (file) => {
+    setForgeryLoading(true);
+    const formData = new FormData();
+    formData.append("image", file);
+    let forgery = false;
+    let confidence = 0;
+    let response = null;
+    try {
+      const res = await fetch("http://0.0.0.0:8000/check_forgery", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      console.log(data);
+      forgery = data?.forgery;
+      confidence = data?.confidence;
+      response = data?.response;
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setForgeryLoading(false);
+    }
+    return { forgery, confidence, response };
+  };
+
+  const updateStatus = (name, forgeryConfidence) => {
+    switch (name) {
+      case "Domicile Certificate":
+        setDomicile(forgeryConfidence);
+        break;
+      case "Income Certificate":
+        setIncomeCertificate(forgeryConfidence);
+        break;
+      case "Category Certificate":
+        setCasteCertificate(forgeryConfidence);
+        break;
+      case "Aadhaar Card":
+        setAadhar(forgeryConfidence);
+        break;
+      case "Bank Account Details":
+        setBank(forgeryConfidence);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const uploadDocument = async (file, name) => {
+    const { forgery, confidence, response } = await checkForgery(file);
+    let forgeryConfidence = forgery && confidence > 0.4;
+    updateStatus(name, forgeryConfidence);
+    if (forgeryConfidence) {
+      //   alert(`Forgery detected. Please upload a valid ${name}.`);
+      return;
+    }
+    if (file) {
+      //   add file as a key value pair in files object
+      setFiles((prev) => {
+        return { ...prev, [name]: { file, name } };
+      });
+    }
+  };
+
+  console.log(files);
+
+  const uploadToFirebase = async (files) => {
+    // upload file url of supabase to firebase
+    const student = JSON.parse(localStorage.getItem("userLogin"));
+    const college = JSON.parse(localStorage.getItem("studentCollege"));
+
+    console.log(db,
+        "colleges",
+        college?.login_id,
+        "students",
+        `${student?.reg_id}`,
+        "schemes",
+        "pmsss",
+        "documents");
+    
+    try{
+        for (const file in files) {
+            const documentsCollection = collection(
+              db,
+              "colleges",
+              college?.login_id,
+              "students",
+              `${student?.reg_id}`,
+              "schemes",
+              "pmsss",
+              "documents"
+            );
+            const file_doc = {
+              name: files[file].name,
+              url: files[file].url,
+            };
+            const docRef = doc(documentsCollection, files[file].name);
+            try {
+              await setDoc(docRef, file_doc);
+            } catch (error) {
+              console.log(error);
+            }
+          }
+    }finally{
+        setUploadLoading(false);
+    }
+  };
+
+  const uploadToSupabase = async () => {
+    setUploadLoading(true);
+    console.log(
+      domicileCertificate,
+      incomeCertificate,
+      casteCertificate,
+      aadhar,
+      bank
+    );
+
+    if (
+      domicileCertificate ||
+      incomeCertificate ||
+      casteCertificate ||
+      aadhar ||
+      bank
+    ) {
+      alert("Please upload all documents or check forgery status!");
+      return;
+    }
+    const student = JSON.parse(localStorage.getItem("userLogin"));
+    const college = JSON.parse(localStorage.getItem("studentCollege"));
+
+    let files_new = [];
+
+    for (const file in files) {
+      const res = await uploadDocumentSupabase(
+        files[file].file,
+        student?.reg_id,
+        college?.college_id,
+        files[file].name
+      );
+      files_new.push({
+        name: files[file].name,
+        url: res.publicUrl,
+      });
+      console.log(res);
+    }
+    uploadToFirebase(files_new);
+    setStep(step + 1);
+  };
 
   return (
     <>
@@ -251,7 +416,7 @@ const Scholarships = () => {
                       onClick={() => setApply(true)}
                       className="px-5 py-2 rounded-full text-xs text-white bg-blue-600 flex items-center gap-2"
                     >
-                      Apply
+                      {!files ? "Apply" : "Applied"}
                     </button>
                   </div>
                 </div>
@@ -471,6 +636,27 @@ const Scholarships = () => {
             </div>
           </div>
         </div>
+        <div
+          className={`fixed bottom-20 right-12 z-40 rounded-lg transition-transform duration-300 ease-in-out transform origin-bottom-right ${
+            chatbot ? "scale-100" : "scale-0"
+          }`}
+        >
+          <Chatbot />
+        </div>
+        <div className="fixed bottom-4 right-4 z-50">
+          <button
+            type="button"
+            class="text-white bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium text-sm px-3 py-2.5 text-center me-2 mb-2 z-10 rounded-full"
+            onClick={toggleChatbotVisibility}
+          >
+            {/* {chatbot ? "Hide Chatbot" : "Show Chatbot"} */}
+            <img
+              class="w-10 h-10 rounded-full"
+              src="https://flowbite.com/docs/images/people/profile-picture-5.jpg"
+              alt=""
+            />
+          </button>
+        </div>
       </div>
       {apply && (
         <div className="h-[100vh] w-[100vw] fixed bg-black/50 border-red-600 top-0 left-0">
@@ -620,73 +806,195 @@ const Scholarships = () => {
                       Required Documents
                     </h1>
                     <div className="mt-7">
-                      <label
-                        class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                        for="file_input"
-                      >
-                        Domicile Certificate
-                      </label>
+                      <div className="flex justify-between w-full">
+                        <label
+                          class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                          for="file_input"
+                        >
+                          Domicile Certificate
+                        </label>
+                        {domicileCertificate !== null ? (
+                          domicileCertificate ? (
+                            <>
+                              <span className="scale-[85%] text-red-500">
+                                Forgery Detected!
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="scale-[85%] text-green-600">
+                                No Forgery Detected
+                              </span>
+                            </>
+                          )
+                        ) : (
+                          <></>
+                        )}
+                      </div>
                       <input
+                        onChange={(e) =>
+                          uploadDocument(
+                            e.target.files[0],
+                            "Domicile Certificate"
+                          )
+                        }
                         class="block w-full text-sm text-gray-900 border border-gray-300 cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
                         id="file_input"
                         type="file"
                       />
                     </div>
                     <div className="mt-7">
-                      <label
-                        class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                        for="file_input"
-                      >
-                        Income Certificate
-                      </label>
+                      <div className="flex justify-between w-full">
+                        <label
+                          class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                          for="file_input"
+                        >
+                          Income Certificate
+                        </label>
+                        {incomeCertificate !== null ? (
+                          incomeCertificate ? (
+                            <>
+                              <span className="scale-[85%] text-red-500">
+                                Forgery Detected!
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="scale-[85%] text-green-600">
+                                No Forgery Detected
+                              </span>
+                            </>
+                          )
+                        ) : (
+                          <></>
+                        )}
+                      </div>
                       <input
                         class="block w-full text-sm text-gray-900 border border-gray-300 cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
                         id="file_input"
                         type="file"
+                        onChange={(e) =>
+                          uploadDocument(
+                            e.target.files[0],
+                            "Income Certificate"
+                          )
+                        }
                       />
                     </div>
                     <div className="mt-7">
-                      <label
-                        class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                        for="file_input"
-                      >
-                        Category Certificate (if applicable)
-                      </label>
+                      <div className="flex justify-between w-full">
+                        <label
+                          class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                          for="file_input"
+                        >
+                          Category Certificate (if applicable)
+                        </label>
+                        {casteCertificate !== null ? (
+                          casteCertificate ? (
+                            <>
+                              <span className="scale-[85%] text-red-500">
+                                Forgery Detected!
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="scale-[85%] text-green-600">
+                                No Forgery Detected
+                              </span>
+                            </>
+                          )
+                        ) : (
+                          <></>
+                        )}
+                      </div>
                       <input
                         class="block w-full text-sm text-gray-900 border border-gray-300 cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
                         id="file_input"
                         type="file"
+                        onChange={(e) =>
+                          uploadDocument(
+                            e.target.files[0],
+                            "Category Certificate"
+                          )
+                        }
                       />
                     </div>
                     <div className="mt-7">
-                      <label
-                        class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                        for="file_input"
-                      >
-                        Aadhaar Card
-                      </label>
+                      <div className="flex justify-between w-full">
+                        <label
+                          class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                          for="file_input"
+                        >
+                          Aadhaar Card
+                        </label>
+                        {aadhar !== null ? (
+                          aadhar ? (
+                            <>
+                              <span className="scale-[85%] text-red-500">
+                                Forgery Detected!
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="scale-[85%] text-green-600">
+                                No Forgery Detected
+                              </span>
+                            </>
+                          )
+                        ) : (
+                          <></>
+                        )}
+                      </div>
                       <input
                         class="block w-full text-sm text-gray-900 border border-gray-300 cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
                         id="file_input"
                         type="file"
+                        onChange={(e) =>
+                          uploadDocument(e.target.files[0], "Aadhaar Card")
+                        }
                       />
                     </div>
                     <div className="mt-7">
-                      <label
-                        class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-                        for="file_input"
-                      >
-                        Bank Account Details
-                      </label>
+                      <div className="flex justify-between w-full">
+                        <label
+                          class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
+                          for="file_input"
+                        >
+                          Bank Account Details
+                        </label>
+                        {bank !== null ? (
+                          bank ? (
+                            <>
+                              <span className="scale-[85%] text-red-500">
+                                Forgery Detected!
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="scale-[85%] text-green-600">
+                                No Forgery Detected
+                              </span>
+                            </>
+                          )
+                        ) : (
+                          <></>
+                        )}
+                      </div>
                       <input
                         class="block w-full text-sm text-gray-900 border border-gray-300 cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
                         id="file_input"
                         type="file"
+                        onChange={(e) =>
+                          uploadDocument(
+                            e.target.files[0],
+                            "Bank Account Details"
+                          )
+                        }
                       />
                     </div>
                   </>
                 ) : step === 3 ? (
-                    <>
+                  <>
                     <section class="bg-white dark:bg-gray-900">
                       <div class="">
                         <form action="#">
@@ -805,7 +1113,10 @@ const Scholarships = () => {
                   setStep(step - 1);
                 }}
                 type="submit"
-                class={"inline-flex scale-90 mt-1 items-center px-5 py-2.5 text-sm font-medium text-center text-white bg-blue-700 rounded-lg focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-900 hover:bg-blue-800" + (step === 1 && " opacity-0 text-transparent") }
+                class={
+                  "inline-flex scale-90 mt-1 items-center px-5 py-2.5 text-sm font-medium text-center text-white bg-blue-700 rounded-lg focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-900 hover:bg-blue-800" +
+                  (step === 1 && " opacity-0 text-transparent")
+                }
               >
                 Previous
               </button>
@@ -814,6 +1125,10 @@ const Scholarships = () => {
                   if (step === 3) {
                     setApply(false);
                     setStep(1);
+                    return;
+                  }
+                  if (step === 2) {
+                    uploadToSupabase();
                     return;
                   }
                   setStep(step + 1);
@@ -827,7 +1142,52 @@ const Scholarships = () => {
           </div>
         </div>
       )}
-      {}
+      {forgeryLoading && (
+        <div className="h-[100vh] w-[100vw] fixed bg-black/50 border-red-600 top-0 left-0">
+          <div className="w-[30%] h-[30%] flex flex-col justify-center items-center bg-white rounded-lg shadow fixed top-[55%] left-[60%] transform -translate-x-1/2 -translate-y-1/2">
+            <svg
+              aria-hidden="true"
+              class="w-14 h-14 text-gray-200 animate-spin fill-blue-600"
+              viewBox="0 0 100 101"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                fill="currentColor"
+              />
+              <path
+                d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                fill="currentFill"
+              />
+            </svg>
+            <div className="text-md mt-5">Checking for forgeries...</div>
+          </div>
+        </div>
+      )}
+      {uploadLoading && (
+        <div className="h-[100vh] w-[100vw] fixed bg-black/50 border-red-600 top-0 left-0">
+          <div className="w-[30%] h-[30%] flex flex-col justify-center items-center bg-white rounded-lg shadow fixed top-[55%] left-[60%] transform -translate-x-1/2 -translate-y-1/2">
+            <svg
+              aria-hidden="true"
+              class="w-14 h-14 text-gray-200 animate-spin fill-blue-600"
+              viewBox="0 0 100 101"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
+                fill="currentColor"
+              />
+              <path
+                d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
+                fill="currentFill"
+              />
+            </svg>
+            <div className="text-md mt-5">Uploading documents...</div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
