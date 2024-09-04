@@ -29,7 +29,7 @@ async function uploadDocumentSupabase(document, studentID, collegeName, document
     return getPublicURL(path);
 }
 
-async function deleteDocumentSupabase(document, studentID, collegeName, documentName) {
+async function deleteDocumentSupabase(studentID, collegeName, documentName) {
     if (!document || !studentID || !collegeName || !documentName) {
         console.log('Invalid input: document, studentID, collegeName, documentName are required');
     }
