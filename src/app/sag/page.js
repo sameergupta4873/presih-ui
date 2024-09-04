@@ -110,8 +110,44 @@ const Sag = () => {
     }
   };
 
+  const [uploadedDocs, setUploadedDocs] = useState([]);
+
+  const fetchStudentDocs = async (student) => {
+    try {
+        const collegeAdmin = JSON.parse(localStorage.getItem("college"));
+        console.log(collegeAdmin);
+        const collegeId = collegeAdmin.login_id;
+        if (!collegeId) {
+            alert("College not found!");
+            return;
+        }
+
+        const studentDocsCollection = collection(
+            db,
+            "colleges",
+            `${collegeId}`,
+            "students",
+            `${student.reg_id}`,
+            "schemes",
+            "pmsss",
+            "documents"
+        );
+
+        const studentDocsSnapshot = await getDocs(studentDocsCollection);
+        const studentDocsData = studentDocsSnapshot.docs.map((doc) => doc.data());
+        console.log(studentDocsData);
+        setUploadedDocs(studentDocsData);
+
+    } catch (error) {
+        console.error("Error getting student documents: ", error);
+        alert("Error getting student documents");
+    }finally{
+        setApplication(true);
+    }
+    };
+
   const openImage = (imageName) => {
-    const imageUrl = `/${imageName}`;
+    const imageUrl = `${imageName}`;
     window.open(imageUrl, "_blank");
   };
 
@@ -403,7 +439,9 @@ const Sag = () => {
                         </td>
                         <td class="px-6 py-4">
                           <button
-                            onClick={() => setApplication(true)}
+                            onClick={() => {
+                                fetchStudentDocs(student);
+                            }}
                             class="font-medium text-blue-600 dark:text-blue-500 hover:underline"
                           >
                             View application
@@ -694,7 +732,7 @@ const Sag = () => {
                         </label>
                         <div class="flex items-center px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700">
                           <button
-                            onClick={() => openImage("domicile.webp")}
+                            onClick={() => openImage(uploadedDocs.filter((doc) => doc.name === "Domicile Certificate")[0].url)}
                             type="button"
                             class="inline-flex justify-center p-2 text-gray-500 rounded-lg cursor-pointer hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600"
                           >
@@ -823,7 +861,7 @@ const Sag = () => {
                         </label>
                         <div class="flex items-center px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700">
                           <button
-                            onClick={() => openImage("income.webp")}
+                            onClick={() => openImage(uploadedDocs.filter((doc) => doc.name === "Income Certificate")[0].url)}
                             type="button"
                             class="inline-flex justify-center p-2 text-gray-500 rounded-lg cursor-pointer hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600"
                           >
