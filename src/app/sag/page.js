@@ -389,9 +389,9 @@ const Sag = () => {
               </thead>
               <tbody>
                 {students && studentType === "all" ? (
-                  students.map((student) => {
+                  students.map((student, idx) => {
                     return (
-                      <tr class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                      <tr key={idx} class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                         <td class="w-4 p-4">
                           <div class="flex items-center">
                             <label
@@ -568,7 +568,7 @@ const Sag = () => {
           <div className="w-[90%] h-[85%] bg-white rounded-lg shadow fixed top-[53%] left-[50%] transform -translate-x-1/2 -translate-y-1/2">
             <div className="border-b py-2 px-5 flex justify-between">
               <span className="font-semibold text-lg">
-                Sameer Gupta's Application
+                Sameer Gupta&apos;s Application
               </span>
               <button
                 onClick={() => setApplication(false)}
