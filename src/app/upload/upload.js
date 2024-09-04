@@ -13,6 +13,20 @@ async function getPublicURL(path) {
     return data
 }
 
+async function checkIfAlreadyExists(document, path) {
+    const {data, error} = await supabase.storage.from(bucketName).update(path, document, {
+        cacheControl: '3600', 
+        upsert: true
+    })
+    
+    if(error) {
+        console.log(`error re-uploading the file : ${error}`);
+        return false
+    } else {
+        return data
+    }
+}
+
 async function uploadDocumentSupabase(document, studentID, collegeName, documentName) {
     if (!document || !studentID || !collegeName || !documentName) {
         console.log('Invalid input: document, studentID, collegeName, documentName are required');
@@ -24,9 +38,16 @@ async function uploadDocumentSupabase(document, studentID, collegeName, document
 
     if(error) {
         console.log(`Upload failed: ${error.message}`);
+        console.log('trying update');
+        let result = checkIfAlreadyExists(document, path)
+        if(result != false){
+            return getPublicURL(path)
+        } else {
+            console.log('error uploading as well as updating the file');   
+        }
+    } else {
+        return getPublicURL(path);
     }
-
-    return getPublicURL(path);
 }
 
 export {uploadDocumentSupabase};
