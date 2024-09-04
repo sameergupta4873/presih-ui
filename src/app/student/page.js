@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { Chatbot } from "../chatbot/chatbot";
+import { uploadDocumentSupabase } from "../upload/upload";
 
 const Home = () => {
   return (
@@ -181,11 +182,57 @@ const Scholarships = () => {
   const [step, setStep] = useState(1);
   const [apply, setApply] = useState(false);
   const [chatbot, setChatbot] = useState(false);
+  const [files, setFiles] = useState([]);
 
   const toggleChatbotVisibility = () => {
     setChatbot(!chatbot);
   };
 
+  const checkForgery = async (file) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    let forgery = false;
+    let confidence = 0;
+    let response = null;
+    try {
+        const res = await fetch("http://0.0.0.0:8000/check_forgery", {
+            method: "POST",
+            body: formData,
+          });
+            const data = await res.json();
+            console.log(data);
+            forgery = data?.forgery;
+            confidence = data?.confidence;
+            response = data?.response;
+    } catch (error) {
+        console.log(error);
+    }
+    return { forgery, confidence, response };
+  };
+
+    const uploadDocument = async (file, name) => {
+        const { forgery, confidence, response } = await checkForgery(file);
+        if (forgery && confidence > 0.4) {
+            alert(`Forgery detected. Please upload a valid ${name}.`);
+            return;
+        }
+        if(file){
+            setFiles([...files, {
+                name,
+                file
+            }]);
+        }
+    }
+
+    const uploadToSupabase = async () => {
+        const student = JSON.parse(localStorage.getItem("userLogin"));
+        const college = JSON.parse(localStorage.getItem("studentCollege"));
+
+        files.forEach(async (file) => {
+            const res = await uploadDocumentSupabase(file.file, student?.reg_id, college?.college_id,file.name);
+            console.log(res);
+        });
+    };
 
   return (
     <>
@@ -485,9 +532,17 @@ const Scholarships = () => {
           <Chatbot />
         </div>
         <div className="fixed bottom-4 right-4 z-50">
-          <button type="button" class="text-white bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium text-sm px-3 py-2.5 text-center me-2 mb-2 z-10 rounded-full" onClick={toggleChatbotVisibility}>
+          <button
+            type="button"
+            class="text-white bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium text-sm px-3 py-2.5 text-center me-2 mb-2 z-10 rounded-full"
+            onClick={toggleChatbotVisibility}
+          >
             {/* {chatbot ? "Hide Chatbot" : "Show Chatbot"} */}
-            <img class="w-10 h-10 rounded-full" src="https://flowbite.com/docs/images/people/profile-picture-5.jpg" alt="" />
+            <img
+              class="w-10 h-10 rounded-full"
+              src="https://flowbite.com/docs/images/people/profile-picture-5.jpg"
+              alt=""
+            />
           </button>
         </div>
       </div>
@@ -646,6 +701,9 @@ const Scholarships = () => {
                         Domicile Certificate
                       </label>
                       <input
+                        onChange={(e) =>
+                            uploadDocument(e.target.files[0], "Domicile Certificate")
+                        }
                         class="block w-full text-sm text-gray-900 border border-gray-300 cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
                         id="file_input"
                         type="file"
@@ -662,6 +720,7 @@ const Scholarships = () => {
                         class="block w-full text-sm text-gray-900 border border-gray-300 cursor-pointer bg-gray-50 dark:text-gray-400 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
                         id="file_input"
                         type="file"
+                        onChange={(e) => uploadDocument(e.target.files[0], "Income Certificate")}
                       />
                     </div>
                     <div className="mt-7">
@@ -705,7 +764,7 @@ const Scholarships = () => {
                     </div>
                   </>
                 ) : step === 3 ? (
-                    <>
+                  <>
                     <section class="bg-white dark:bg-gray-900">
                       <div class="">
                         <form action="#">
@@ -824,7 +883,10 @@ const Scholarships = () => {
                   setStep(step - 1);
                 }}
                 type="submit"
-                class={"inline-flex scale-90 mt-1 items-center px-5 py-2.5 text-sm font-medium text-center text-white bg-blue-700 rounded-lg focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-900 hover:bg-blue-800" + (step === 1 && " opacity-0 text-transparent") }
+                class={
+                  "inline-flex scale-90 mt-1 items-center px-5 py-2.5 text-sm font-medium text-center text-white bg-blue-700 rounded-lg focus:ring-4 focus:ring-blue-200 dark:focus:ring-blue-900 hover:bg-blue-800" +
+                  (step === 1 && " opacity-0 text-transparent")
+                }
               >
                 Previous
               </button>
@@ -834,6 +896,9 @@ const Scholarships = () => {
                     setApply(false);
                     setStep(1);
                     return;
+                  }
+                  if(step === 2) {
+                    uploadToSupabase();
                   }
                   setStep(step + 1);
                 }}
