@@ -29,4 +29,21 @@ async function uploadDocumentSupabase(document, studentID, collegeName, document
     return getPublicURL(path);
 }
 
+async function deleteDocumentSupabase(document, studentID, collegeName, documentName) {
+    if (!document || !studentID || !collegeName || !documentName) {
+        console.log('Invalid input: document, studentID, collegeName, documentName are required');
+    }
+
+    const path = `${collegeName}/${studentID}/${documentName}`
+
+    const {data, error} = await supabase.storage.from(bucketName).remove([path]) 
+
+    if(error) {
+        console.log(`Delete failed: ${error.message}`);
+    } else {
+        console.log('Delete successful');
+        
+    }
+}
+
 export {uploadDocumentSupabase};
